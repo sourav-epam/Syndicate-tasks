@@ -2,6 +2,7 @@ package com.task04;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.syndicate.deployment.annotations.events.FunctionResponseType;
 import com.syndicate.deployment.annotations.events.SqsEvents;
 import com.syndicate.deployment.annotations.events.SqsTriggerEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
@@ -22,7 +23,8 @@ import java.util.List;
 	logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
 
-@SqsTriggerEventSource(targetQueue = "async_queue", batchSize = 512)
+@SqsTriggerEventSource(targetQueue = "async_queue", batchSize = 1024, functionResponseTypes = FunctionResponseType.REPORT_BATCH_ITEM_FAILURES)
+@SqsEvents
 public class SqsHandler implements RequestHandler<SQSEvent, List<String>> {
 
 	@Override
