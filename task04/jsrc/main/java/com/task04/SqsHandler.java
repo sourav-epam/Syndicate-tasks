@@ -22,8 +22,7 @@ import java.util.List;
 	logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
 
-@SqsTriggerEventSource(targetQueue = "async_queue", batchSize = 123)
-@SqsEvents
+@SqsTriggerEventSource(targetQueue = "async_queue", batchSize = 512)
 public class SqsHandler implements RequestHandler<SQSEvent, List<String>> {
 
 	@Override
