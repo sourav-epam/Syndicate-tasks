@@ -25,6 +25,16 @@
     "resource_type": "iam_policy",
     "tags": {}
   },
+  "${target_table}": {
+    "resource_type": "dynamodb_table",
+    "hash_key_name": "id",
+    "hash_key_type": "S",
+    "read_capacity": 1,
+    "write_capacity": 1,
+    "global_indexes": [],
+    "autoscaling": [],
+    "tags": {}
+  },
   "api_handler-role": {
     "predefined_policies": [],
     "principal_service": "lambda",
@@ -40,7 +50,7 @@
     "dependencies": [],
     "resources": {
       "/events": {
-        "enable_cors": true,
+        "enable_cors": false,
         "POST": {
           "authorization_type": "NONE",
           "integration_type": "lambda",
@@ -51,19 +61,10 @@
           "responses": [],
           "integration_responses": [],
           "default_error_pattern": true
-        }
+        },
+        "enable_proxy": true
       }
     },
-    "tags": {}
-  },
-  "Events": {
-    "resource_type": "dynamodb_table",
-    "hash_key_name": "id",
-    "hash_key_type": "S",
-    "read_capacity": 1,
-    "write_capacity": 1,
-    "global_indexes": [],
-    "autoscaling": [],
     "tags": {}
   }
 }
