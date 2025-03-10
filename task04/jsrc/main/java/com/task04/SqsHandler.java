@@ -7,12 +7,8 @@ import com.syndicate.deployment.annotations.events.SqsTriggerEventSource;
 import com.syndicate.deployment.annotations.lambda.LambdaHandler;
 import com.syndicate.deployment.model.RetentionSetting;
 
-import com.amazonaws.services.lambda.runtime.LambdaLogger;
-import com.amazonaws.services.lambda.runtime.events.SQSEvent;
-import com.amazonaws.services.lambda.runtime.events.SQSEvent.SQSMessage;
-
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @LambdaHandler(
 	lambdaName = "sqs_handler", 
@@ -23,16 +19,12 @@ import java.util.List;
 )
 
 @SqsTriggerEventSource(targetQueue = "async_queue", batchSize = 10, functionResponseTypes = FunctionResponseType.REPORT_BATCH_ITEM_FAILURES)
-public class SqsHandler implements RequestHandler<SQSEvent, List<String>> {
-
-	@Override
-	public List<String> handleRequest(SQSEvent event, Context context) {
-		LambdaLogger logger = context.getLogger();
-		logger.log("EVENT TYPE: " + event.getClass().toString());
-		var messagesFound = new ArrayList<String>();
-		for (SQSMessage msg : event.getRecords()) {
-			messagesFound.add(msg.getBody());
-		}
-		return messagesFound;
+public class SqsHandler implements RequestHandler<Object, Map<String, Object>> {
+	public Map<String, Object> handleRequest(Object request, Context context) {
+		context.getLogger().log("Received event: " + request.toString() + "\n");
+		Map<String, Object> resultMap = new HashMap<>();
+		resultMap.put("statusCode", 200);
+		resultMap.put("body", "Processed SQS Messages Successfully");
+		return resultMap;
 	}
 }
