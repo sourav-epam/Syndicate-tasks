@@ -25,12 +25,10 @@ import java.util.UUID;
 		aliasName = "${lambdas_alias_name}",
 		logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
-@EnvironmentVariables(value = {
-		@EnvironmentVariable(key = "target_table", value = "${target_table}")
-})
+
 public class ApiHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
 
-	private static final String TABLE_NAME = System.getenv("target_table");
+	private static final String TABLE_NAME = "Events";
 	private static final AmazonDynamoDB client = AmazonDynamoDBClientBuilder.defaultClient();
 	private static final DynamoDB dynamoDB = new DynamoDB(client);
 	private static final ObjectMapper objectMapper = new ObjectMapper();
