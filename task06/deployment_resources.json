@@ -12,6 +12,10 @@
             "dynamodb:PutItem",
             "dynamodb:Batch*",
             "dynamodb:DeleteItem",
+            "dynamodb:GetShardIterator",
+            "dynamodb:DescribeStream",
+            "dynamodb:ListStreams",
+            "dynamodb:GetRecords",
             "ssm:PutParameter",
             "ssm:GetParameter",
             "kms:Decrypt"
