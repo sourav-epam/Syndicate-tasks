@@ -5,32 +5,29 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.Table;
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
 import com.syndicate.deployment.annotations.environment.EnvironmentVariables;
+import com.syndicate.deployment.annotations.lambda.LambdaHandler;
+import com.syndicate.deployment.model.RetentionSetting;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.RequestHandler;
-import com.syndicate.deployment.annotations.lambda.LambdaHandler;
-import com.syndicate.deployment.model.RetentionSetting;
-
-import java.util.HashMap;
-import java.util.Map;
-
 @LambdaHandler(
-    lambdaName = "api_handler",
-	roleName = "api_handler-role",
-	isPublishVersion = true,
-	aliasName = "${lambdas_alias_name}",
-	logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
+		lambdaName = "api_handler",
+		roleName = "api_handler-role",
+		isPublishVersion = true,
+		aliasName = "${lambdas_alias_name}",
+		logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
+
 public class ApiHandler implements RequestHandler<Map<String, Object>, Map<String, Object>> {
-	
+
 	private static final String TABLE_NAME = "Events";
 	private static final AmazonDynamoDB client = AmazonDynamoDBClientBuilder.defaultClient();
 	private static final DynamoDB dynamoDB = new DynamoDB(client);
@@ -38,16 +35,18 @@ public class ApiHandler implements RequestHandler<Map<String, Object>, Map<Strin
 
 	@Override
 	public Map<String, Object> handleRequest(Map<String, Object> request, Context context) {
-
 		context.getLogger().log("Received input: " + request.toString());
 
 		try {
+			// Extract data from request
 			int principalId = (int) request.get("principalId");
 			Map<String, String> content = (Map<String, String>) request.get("content");
 
+			// Generate event fields
 			String eventId = UUID.randomUUID().toString();
 			String createdAt = Instant.now().toString();
 
+			// Save event to DynamoDB
 			Table table = dynamoDB.getTable(TABLE_NAME);
 			Item item = new Item()
 					.withPrimaryKey("id", eventId)
@@ -73,6 +72,5 @@ public class ApiHandler implements RequestHandler<Map<String, Object>, Map<Strin
 			errorResponse.put("error", "Internal Server Error: " + e.getMessage());
 			return errorResponse;
 		}
-
 	}
 }
