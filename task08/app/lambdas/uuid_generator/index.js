@@ -8,6 +8,7 @@ const BUCKET_NAME = process.env.S3_BUCKET_NAME || 'uuid-storage';
 // Initialize S3 client with region
 const s3Client = new S3Client({ region: REGION });
 
+// task08
 export const handler = async (event) => {
     try {
         // Generate 10 random UUIDs
