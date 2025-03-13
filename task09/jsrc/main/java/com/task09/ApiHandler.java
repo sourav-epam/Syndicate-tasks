@@ -27,6 +27,7 @@ import java.util.Map;
 	roleName = "api_handler-role", 
 	isPublishVersion = true, 
 	aliasName = "${lambdas_alias_name}", 
+    layers = "weather_sdk",
 	logsExpiration = RetentionSetting.SYNDICATE_ALIASES_SPECIFIED
 )
 @LambdaLayer(
