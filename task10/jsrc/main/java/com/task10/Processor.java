@@ -48,7 +48,7 @@ import com.syndicate.deployment.model.lambda.url.InvokeMode;
 public class Processor implements RequestHandler<Map<String, Object>, Map<String, Object>> {
 
 	private static final String TABLE_NAME = System.getenv("target_table");
-	private static final String WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude=50.4375&longitude=30.5&hourly=temperature_2m&timezone=auto";
+	private static final String WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m";
 
 	private static final AmazonDynamoDB client = AmazonDynamoDBClientBuilder.defaultClient();
 	private static final OkHttpClient httpClient = new OkHttpClient();
