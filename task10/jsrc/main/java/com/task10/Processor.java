@@ -3,6 +3,8 @@ package com.task10;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
+import com.amazonaws.services.dynamodbv2.document.Item;
+import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
 import com.amazonaws.services.lambda.runtime.Context;
@@ -26,6 +28,7 @@ import java.io.IOException;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import com.syndicate.deployment.annotations.environment.EnvironmentVariables;
 import com.syndicate.deployment.annotations.environment.EnvironmentVariable;
@@ -42,92 +45,103 @@ import com.syndicate.deployment.model.lambda.url.InvokeMode;
 })
 
 @DependsOn(name = "Weather", resourceType = ResourceType.DYNAMODB_TABLE)
-public class Processor implements RequestHandler<Object, Map<String, Object>> {
+public class Processor implements RequestHandler<Map<String, Object>, Map<String, Object>> {
 
 	private static final String TABLE_NAME = System.getenv("target_table");
+	private static final String WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude=50.4375&longitude=30.5&hourly=temperature_2m&timezone=auto";
 
 	private static final AmazonDynamoDB client = AmazonDynamoDBClientBuilder.defaultClient();
-
+	private static final OkHttpClient httpClient = new OkHttpClient();
+	
 	private static final ObjectMapper objectMapper = new ObjectMapper()
 			.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-	public Map<String, Object> handleRequest(Object request, Context context) {
+	@Override
+    public Map<String, Object> handleRequest(Map<String, Object> event, Context context) {
+        try {
+            context.getLogger().log("Fetching weather data...");
 
+            // Fetch weather forecast
+            String weatherData = fetchWeatherData();
+            Map<String, Object> weatherDataMap = objectMapper.readValue(weatherData, Map.class);
+
+            // Create a new weather record
+            Map<String, Object> forecast = new HashMap<>();
+            forecast.put("elevation", weatherDataMap.get("elevation"));
+            forecast.put("generationtime_ms", weatherDataMap.get("generationtime_ms"));
+            forecast.put("hourly", weatherDataMap.get("hourly"));
+            forecast.put("hourly_units", weatherDataMap.get("hourly_units"));
+            forecast.put("latitude", weatherDataMap.get("latitude"));
+            forecast.put("longitude", weatherDataMap.get("longitude"));
+            forecast.put("timezone", weatherDataMap.get("timezone"));
+            forecast.put("timezone_abbreviation", weatherDataMap.get("timezone_abbreviation"));
+            forecast.put("utc_offset_seconds", weatherDataMap.get("utc_offset_seconds"));
+
+            Map<String, Object> weatherRecord = new HashMap<>();
+            weatherRecord.put("id", UUID.randomUUID().toString());
+            weatherRecord.put("forecast", forecast);
+
+            context.getLogger().log("Saving to DynamoDB: " + objectMapper.writeValueAsString(weatherRecord));
+
+            // Save to DynamoDB
+            saveToDynamoDB(weatherRecord);
+
+            context.getLogger().log("Weather data saved successfully!");
+
+            // Return success response
+            Map<String, Object> response = new HashMap<>();
+            response.put("statusCode", 200);
+            response.put("body", Map.of("message", "Weather data stored", "data", weatherRecord));
+
+            return response;
+        } catch (Exception e) {
+            context.getLogger().log("Error fetching/storing weather data: " + e.getMessage());
+            e.printStackTrace();
+
+            // Return error response
+            Map<String, Object> response = new HashMap<>();
+            response.put("statusCode", 500);
+            response.put("body", Map.of("error", "Failed to fetch/store weather data"));
+            return response;
+        }
+    }
+
+    private String fetchWeatherData() throws Exception {
+        Request request = new Request.Builder()
+                .url(WEATHER_API_URL)
+                .get()
+                .build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new RuntimeException("Failed to fetch weather data: HTTP " + response.code());
+            }
+            return response.body().string();
+        }
+    }
+
+    private void saveToDynamoDB(Map<String, Object> weatherRecord) {
+		// Map to store the DynamoDB item
+		Map<String, AttributeValue> item = new HashMap<>();
+	
+		// Add the primary key (id)
+		item.put("id", new AttributeValue().withS((String) weatherRecord.get("id")));
+	
+		// Convert the forecast object to JSON string and add it as an item
 		try {
-			double latitude = 50.4375;
-			double longitude = 30.5;
-			Weather weather = WeatherClient.fetchAndSaveWeather(latitude, longitude);
-			// Serialize the Weather object into JSON
-			String weatherJson = objectMapper.writeValueAsString(weather.getForecast());
-
-			// Prepare the item to be inserted into DynamoDB
-			Map<String, AttributeValue> item = new HashMap<>();
-
-			item.put("id", new AttributeValue().withS(weather.getId()));
-			item.put("forecast", new AttributeValue().withS(weatherJson));
-
-			// Create the PutItemRequest
-			PutItemRequest putItemRequest = new PutItemRequest()
-					.withTableName(TABLE_NAME)
-					.withItem(item);
-
-			// Insert the item into DynamoDB
-			client.putItem(putItemRequest);
-
-			Map<String, Object> response = new HashMap<>();
-			response.put("status", 201);
-			response.put("message", "response saved to dynamodb");
-
-			return response;
+			String forecastJson = objectMapper.writeValueAsString(weatherRecord.get("forecast"));
+			item.put("forecast", new AttributeValue().withS(forecastJson));
 		} catch (Exception e) {
-			throw new RuntimeException("Error saving weather data to DynamoDB: " + e.getMessage(), e);
+			throw new RuntimeException("Failed to serialize forecast to JSON: " + e.getMessage(), e);
 		}
+	
+		// Create the PutItemRequest
+		PutItemRequest putItemRequest = new PutItemRequest()
+				.withTableName(TABLE_NAME) // DynamoDB table name
+				.withItem(item);
+	
+		// Execute the PutItemRequest
+		client.putItem(putItemRequest);
 	}
 
-	public static class WeatherClient {
-		private static final String BASE_URL = "https://api.open-meteo.com/v1/forecast";
-		private static final OkHttpClient client = new OkHttpClient();
-
-		public static Weather fetchAndSaveWeather(double latitude, double longitude) {
-			try {
-				// Fetch weather data from Open-Meteo API
-				String apiResponse = getWeather(latitude, longitude);
-
-				// Deserialize API response into Weather.Forecast object
-				Weather.Forecast forecast = objectMapper.readValue(apiResponse, Weather.Forecast.class);
-
-				// Create a Weather object
-				Weather weather = new Weather(forecast);
-
-				// Save the Weather object to DynamoDB
-				return weather;
-
-			} catch (Exception e) {
-				throw new RuntimeException("Error fetching or saving weather data: " + e.getMessage(), e);
-			}
-		}
-
-		public static String getWeather(double latitude, double longitude) throws IOException {
-			HttpUrl url = HttpUrl.parse(BASE_URL)
-					.newBuilder()
-					.addQueryParameter("latitude", String.valueOf(latitude))
-					.addQueryParameter("longitude", String.valueOf(longitude))
-					.addQueryParameter("hourly", "temperature_2m,relative_humidity_2m,wind_speed_10m")
-					.addQueryParameter("timezone", "auto")
-					.build();
-
-			Request request = new Request.Builder()
-					.url(url)
-					.get()
-					.build();
-
-			try (Response response = client.newCall(request).execute()) {
-				if (!response.isSuccessful()) {
-					throw new IOException("Unexpected HTTP code " + response.code());
-				}
-
-				return response.body().string();
-			}
-		}
-	}
 }
