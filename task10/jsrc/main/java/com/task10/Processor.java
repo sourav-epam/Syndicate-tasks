@@ -54,8 +54,8 @@ public class Processor implements RequestHandler<Object, Map<String, Object>> {
 	public Map<String, Object> handleRequest(Object request, Context context) {
 
 		try {
-			double latitude = 52.52;
-			double longitude = 13.419998;
+			double latitude = 50.4375;
+			double longitude = 30.5;
 			Weather weather = WeatherClient.fetchAndSaveWeather(latitude, longitude);
 			// Serialize the Weather object into JSON
 			String weatherJson = objectMapper.writeValueAsString(weather.getForecast());
